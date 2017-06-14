@@ -1,0 +1,38 @@
+buildscript {
+    repositories {
+        maven {
+            name = 'forge'
+            url = 'http://files.minecraftforge.net/maven'
+        }
+    }
+
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+    }
+}
+
+plugins {
+    id 'org.spongepowered.plugin' version '0.8.1'
+    id 'net.minecrell.vanillagradle.server' version '2.2-6'
+}
+
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+group 'io.github.icohedron'
+version '1.0-MC1.10.2'
+description = 'Allows clients to set their own time without affecting the server\'s'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+minecraft {
+    version = '1.10.2'
+    mappings = 'stable_29'
+}
+
+dependencies {
+    compile 'org.spongepowered:spongeapi:5.1.0'
+    compile 'com.github.CrushedPixel:PacketGate:0.1.1'
+}
