@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-@Plugin(id = "client-time", name = "Client Time", version = "1.0-MC1.10.2", dependencies = @Dependency(id = "packetgate", version = "0.1.1"))
+@Plugin(id = "client-time", name = "ClientTime", version = "1.0-SNAPSHOT-1", dependencies = @Dependency(id = "packetgate"))
 public class ClientTime extends PacketListenerAdapter {
 
     @Inject
@@ -46,9 +46,9 @@ public class ClientTime extends PacketListenerAdapter {
             PacketGate packetGate = packetGateOptional.get();
             packetGate.registerListener(this, ListenerPriority.DEFAULT, SPacketTimeUpdate.class);
             initializeCommands();
-            logger.info("Client Time has successfully initialized");
+            logger.info("ClientTime has successfully initialized");
         } else {
-            logger.error("PacketGate is not installed. Client Time depends on PacketGate in order to work");
+            logger.error("PacketGate is not installed. ClientTime depends on PacketGate in order to work");
         }
     }
 
@@ -64,61 +64,95 @@ public class ClientTime extends PacketListenerAdapter {
         CommandSpec clientTimeCommand = CommandSpec.builder()
                 .description(Text.of("Set client time"))
                 .permission("clienttime.command")
-                .arguments(GenericArguments.onlyOne(GenericArguments.string(Text.of("time"))))
+                .arguments(GenericArguments.optional(GenericArguments.string(Text.of("time"))))
                 .executor((src, args) -> {
                     if (!(src instanceof Player)) {
                         src.sendMessage(Text.of("This command may only be executed by a player"));
                         return CommandResult.empty();
                     }
                     Player player = (Player)src;
-                    String time = args.<String>getOne("time").get();
-                    if (time.equalsIgnoreCase("day")) {
-                        setClientTime(player, 1000);
-                        return CommandResult.success();
-                    } else if (time.equalsIgnoreCase("night")) {
-                        setClientTime(player, 13000);
-                        return CommandResult.success();
-                    } else if (time.equalsIgnoreCase("reset")) {
-                        resetClientTime(player);
-                        return CommandResult.success();
+                    timeOffsets.putIfAbsent(player.getUniqueId(), 0L);
+                    Optional<String> optionalTime = args.getOne("time");
+                    if (optionalTime.isPresent()) {
+                        String time = optionalTime.get();
+                        if (time.equalsIgnoreCase("day")) {
+                            setClientTime(player, 1000);
+                            return CommandResult.success();
+                        } else if (time.equalsIgnoreCase("night")) {
+                            setClientTime(player, 14000);
+                            return CommandResult.success();
+                        } else if (time.equalsIgnoreCase("reset")) {
+                            resetClientTime(player);
+                            return CommandResult.success();
+                        } else {
+                            int intTime;
+                            try {
+                                intTime = Integer.parseInt(time);
+                            } catch (NumberFormatException e) {
+                                sendMessage(player, "\'" + time + "\' is not a valid number");
+                                return CommandResult.empty();
+                            }
+                            if (intTime < 0) {
+                                sendMessage(player, "The number you have entered (" + time + ") is too small, it must be at least 0");
+                                return CommandResult.empty();
+                            }
+                            setClientTime(player, intTime);
+                            return CommandResult.success();
+                        }
                     } else {
-                        int intTime;
-                        try {
-                            intTime = Integer.parseInt(time);
-                        } catch (NumberFormatException e) {
-                            sendMessage(player, "\'" + time + "\' is not a valid number");
-                            return CommandResult.empty();
+                        long ticksAhead = timeOffsets.get(player.getUniqueId());
+                        if (ticksAhead == 0) {
+                            sendMessage(player, "Your time is currently in sync with the server's");
+                        }  else {
+                            sendMessage(player, "Your time is currently running " + ticksAhead + " ticks ahead of the server's");
                         }
-                        if (intTime < 0) {
-                            sendMessage(player, "The number you have entered (" + time + ") is too small, it must be at least 0");
-                            return CommandResult.empty();
-                        }
-                        setClientTime(player, intTime);
                         return CommandResult.success();
                     }
                 })
                 .build();
 
-        Sponge.getCommandManager().register(this, clientTimeCommand, "clienttime", "ctime");
+        Sponge.getCommandManager().register(this, clientTimeCommand, "clienttime", "ctime", "ptime");
     }
 
     private void sendMessage(Player player, String text) {
-        player.sendMessage(Text.of(TextColors.GREEN, "[", TextColors.RED, "Client Time", TextColors.GREEN, "] ", TextColors.YELLOW, text));
+        player.sendMessage(Text.of(TextColors.GREEN, "[", TextColors.RED, "ClientTime", TextColors.GREEN, "] ", TextColors.YELLOW, text));
+    }
+
+    private String ticksToRealTime(long ticks) {
+        int hours = (int) (ticks / 1000.0) + 6;
+        int minutes = (int) (((ticks % 1000) / 1000.0) * 60.0);
+
+        String suffix = "AM";
+
+        if (hours >= 12) {
+            hours -= 12;
+            suffix = "PM";
+            if (hours >= 12) {
+                hours -= 12;
+                suffix = "AM";
+            }
+        }
+
+        if (hours == 0) {
+            hours += 12;
+        }
+
+        return hours + ":" + String.format("%02d", minutes) + " " + suffix;
     }
 
     private void setClientTime(Player player, long ticks) {
         World world = player.getWorld();
         long worldTime = world.getProperties().getWorldTime();
-        long desiredClientTime = (long) Math.ceil(worldTime / 24000.0f) * 24000 + ticks;
+        long desiredClientTime = (long) Math.ceil(worldTime / 24000.0f) * 24000 + ticks; // Fast forward to the next '0' time and add the desired number of ticks
         long timeOffset = desiredClientTime - worldTime;
         timeOffsets.put(player.getUniqueId(), timeOffset);
 
-        sendMessage(player, "Set time to " + ticks);
+        sendMessage(player, "Set time to " + ticks + " (" + ticksToRealTime(ticks % 24000) + ")");
     }
 
     private void resetClientTime(Player player) {
         timeOffsets.put(player.getUniqueId(), 0L);
-        sendMessage(player, "Your time is now reset");
+        sendMessage(player, "Your time is now synchronized with the server's");
     }
 
     @Override
@@ -144,19 +178,13 @@ public class ClientTime extends PacketListenerAdapter {
 
         long clientWorldTime;
         if (worldTime < 0) {
-            clientWorldTime = -((-worldTime + timeOffsets.get(playerUuid)) % 24000); // gamerule doDaylightCycle is false, which makes worldTime negative
+            clientWorldTime = worldTime - timeOffsets.get(playerUuid); // gamerule doDaylightCycle is false, which makes worldTime negative
         } else {
-            clientWorldTime = (worldTime + timeOffsets.get(playerUuid)) % 24000;
+            clientWorldTime = worldTime + timeOffsets.get(playerUuid);
         }
 
-        PacketBuffer newPacketBuffer = new PacketBuffer((Unpooled.buffer(16)));
-        newPacketBuffer.writeLong(totalWorldTime);
-        newPacketBuffer.writeLong(clientWorldTime);
+        packetEvent.setPacket(new SPacketTimeUpdate(totalWorldTime, clientWorldTime, true));
 
-        try {
-            packet.readPacketData(newPacketBuffer);
-        } catch (IOException e) {
-            logger.error("Failed to write packet buffer");
-        }
+//        logger.info("UUID: " + playerUuid + ", World Time: " + worldTime + ", Client World Time: " + clientWorldTime);
     }
 }
