@@ -1,4 +1,4 @@
-package io.github.icohedron.clienttime;
+package io.github.icohedron.personaltime;
 
 import com.google.inject.Inject;
 import eu.crushedpixel.sponge.packetgate.api.event.PacketEvent;
@@ -18,8 +18,6 @@ import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
 import org.spongepowered.api.plugin.Dependency;
 import org.spongepowered.api.plugin.Plugin;
-import org.spongepowered.api.service.permission.PermissionDescription;
-import org.spongepowered.api.service.permission.PermissionService;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.format.TextColors;
 import org.spongepowered.api.world.World;
@@ -30,8 +28,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-@Plugin(id = "clienttime", name = "Client Time", description = "Allows clients/players to set their own time without affecting the server\'s", version = "1.0-PRERELEASE", dependencies = @Dependency(id = "packetgate"))
-public class ClientTime extends PacketListenerAdapter {
+@Plugin(id = "personaltime", name = "Personal Time", description = "Allows players to set their own personal time of day", version = "1.0-PRERELEASE-1", dependencies = @Dependency(id = "packetgate"))
+public class PersonalTime extends PacketListenerAdapter {
 
     @Inject
     private Logger logger;
@@ -46,16 +44,16 @@ public class ClientTime extends PacketListenerAdapter {
             PacketGate packetGate = packetGateOptional.get();
             packetGate.registerListener(this, ListenerPriority.DEFAULT, SPacketTimeUpdate.class);
             initializeCommands();
-            logger.info("Client Time has successfully initialized");
+            logger.info("Personal Time has successfully initialized");
         } else {
-            logger.error("PacketGate is not installed. Client Time depends on PacketGate in order to work");
+            logger.error("PacketGate is not installed. Personal Time depends on PacketGate in order to work");
         }
     }
 
     private void initializeCommands() {
-        CommandSpec clientTimeSetCommand = CommandSpec.builder()
-                .description(Text.of("Set client time"))
-                .permission("clienttime.command.set")
+        CommandSpec personalTimeSetCommand = CommandSpec.builder()
+                .description(Text.of("Set your personal time"))
+                .permission("personaltime.command.set")
                 .arguments(GenericArguments.onlyOne(GenericArguments.string(Text.of("time"))))
                 .executor((src, args) -> {
                     if (!(src instanceof Player)) {
@@ -68,10 +66,10 @@ public class ClientTime extends PacketListenerAdapter {
                     if (optionalTime.isPresent()) {
                         String time = optionalTime.get();
                         if (time.equalsIgnoreCase("day")) {
-                            setClientTime(player, 1000);
+                            setPersonalTime(player, 1000);
                             return CommandResult.success();
                         } else if (time.equalsIgnoreCase("night")) {
-                            setClientTime(player, 14000);
+                            setPersonalTime(player, 14000);
                             return CommandResult.success();
                         } else {
                             int intTime;
@@ -85,7 +83,7 @@ public class ClientTime extends PacketListenerAdapter {
                                 sendMessage(player, "The number you have entered (" + time + ") is too small, it must be at least 0");
                                 return CommandResult.empty();
                             }
-                            setClientTime(player, intTime);
+                            setPersonalTime(player, intTime);
                             return CommandResult.success();
                         }
                     }
@@ -93,23 +91,23 @@ public class ClientTime extends PacketListenerAdapter {
                 })
                 .build();
 
-        CommandSpec clientTimeResetCommand = CommandSpec.builder()
-                .description(Text.of("Reset client time"))
-                .permission("clienttime.command.reset")
+        CommandSpec personalTimeResetCommand = CommandSpec.builder()
+                .description(Text.of("Reset your personal time"))
+                .permission("personaltime.command.reset")
                 .executor((src, args) -> {
                     if (!(src instanceof Player)) {
                         src.sendMessage(Text.of("This command may only be executed by a player"));
                         return CommandResult.empty();
                     }
                     Player player = (Player)src;
-                    resetClientTime(player);
+                    resetPersonalTime(player);
                     return CommandResult.success();
                 })
                 .build();
 
-        CommandSpec clientTimeStatusCommand = CommandSpec.builder()
-                .description(Text.of("Get the status of the client time"))
-                .permission("clienttime.command.status")
+        CommandSpec personalTimeStatusCommand = CommandSpec.builder()
+                .description(Text.of("Get the status of your personal time"))
+                .permission("personaltime.command.status")
                 .executor((src, args) -> {
                     if (!(src instanceof Player)) {
                         src.sendMessage(Text.of("This command may only be executed by a player"));
@@ -127,19 +125,19 @@ public class ClientTime extends PacketListenerAdapter {
                 })
                 .build();
 
-        CommandSpec clientTimeCommand = CommandSpec.builder()
-                .description(Text.of("The one command for ClientTime"))
-                .permission("clienttime.command")
-                .child(clientTimeSetCommand, "set")
-                .child(clientTimeResetCommand, "reset")
-                .child(clientTimeStatusCommand, "status")
+        CommandSpec personalTimeCommand = CommandSpec.builder()
+                .description(Text.of("The one command for PersonalTime"))
+                .permission("personaltime.command")
+                .child(personalTimeSetCommand, "set")
+                .child(personalTimeResetCommand, "reset")
+                .child(personalTimeStatusCommand, "status")
                 .build();
 
-        Sponge.getCommandManager().register(this, clientTimeCommand, "clienttime", "ctime", "ptime");
+        Sponge.getCommandManager().register(this, personalTimeCommand, "personaltime", "ptime");
     }
 
     private void sendMessage(Player player, String text) {
-        player.sendMessage(Text.of(TextColors.GREEN, "[", TextColors.RED, "ClientTime", TextColors.GREEN, "] ", TextColors.YELLOW, text));
+        player.sendMessage(Text.of(TextColors.GREEN, "[", TextColors.RED, "PersonalTime", TextColors.GREEN, "] ", TextColors.YELLOW, text));
     }
 
     private String ticksToRealTime(long ticks) {
@@ -164,17 +162,17 @@ public class ClientTime extends PacketListenerAdapter {
         return hours + ":" + String.format("%02d", minutes) + " " + suffix;
     }
 
-    private void setClientTime(Player player, long ticks) {
+    private void setPersonalTime(Player player, long ticks) {
         World world = player.getWorld();
         long worldTime = world.getProperties().getWorldTime();
-        long desiredClientTime = (long) Math.ceil(worldTime / 24000.0f) * 24000 + ticks; // Fast forward to the next '0' time and add the desired number of ticks
-        long timeOffset = desiredClientTime - worldTime;
+        long desiredPersonalTime = (long) Math.ceil(worldTime / 24000.0f) * 24000 + ticks; // Fast forward to the next '0' time and add the desired number of ticks
+        long timeOffset = desiredPersonalTime - worldTime;
         timeOffsets.put(player.getUniqueId(), timeOffset);
 
         sendMessage(player, "Set time to " + ticks + " (" + ticksToRealTime(ticks % 24000) + ")");
     }
 
-    private void resetClientTime(Player player) {
+    private void resetPersonalTime(Player player) {
         timeOffsets.put(player.getUniqueId(), 0L);
         sendMessage(player, "Your time is now synchronized with the server's");
     }
@@ -200,13 +198,13 @@ public class ClientTime extends PacketListenerAdapter {
         long totalWorldTime = packetBuffer.readLong();
         long worldTime = packetBuffer.readLong();
 
-        long clientWorldTime;
+        long personalWorldTime;
         if (worldTime < 0) {
-            clientWorldTime = worldTime - timeOffsets.get(playerUuid); // gamerule doDaylightCycle is false, which makes worldTime negative
+            personalWorldTime = worldTime - timeOffsets.get(playerUuid); // gamerule doDaylightCycle is false, which makes worldTime negative
         } else {
-            clientWorldTime = worldTime + timeOffsets.get(playerUuid);
+            personalWorldTime = worldTime + timeOffsets.get(playerUuid);
         }
 
-        packetEvent.setPacket(new SPacketTimeUpdate(totalWorldTime, clientWorldTime, true));
+        packetEvent.setPacket(new SPacketTimeUpdate(totalWorldTime, personalWorldTime, true));
     }
 }

@@ -21,8 +21,8 @@ repositories {
 }
 
 group 'io.github.icohedron'
-version '1.0-PRERELEASE'
-description = 'Allows clients/players to set their own time without affecting the server\'s'
+version '1.0-PRERELEASE-1'
+description = 'Allows players to set their own personal time of day'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
