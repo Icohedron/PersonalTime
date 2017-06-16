@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-@Plugin(id = "client-time", name = "ClientTime", version = "1.0-PRERELEASE", dependencies = @Dependency(id = "packetgate"))
+@Plugin(id = "clienttime", name = "ClientTime", description = "Allows clients/players to set their own time without affecting the server\'s", version = "1.0-PRERELEASE", dependencies = @Dependency(id = "packetgate"))
 public class ClientTime extends PacketListenerAdapter {
 
     @Inject
