@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-@Plugin(id = "client-time", name = "ClientTime", version = "1.0-SNAPSHOT-1", dependencies = @Dependency(id = "packetgate"))
+@Plugin(id = "client-time", name = "ClientTime", version = "1.0-PRERELEASE", dependencies = @Dependency(id = "packetgate"))
 public class ClientTime extends PacketListenerAdapter {
 
     @Inject

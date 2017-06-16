@@ -21,7 +21,7 @@ repositories {
 }
 
 group 'io.github.icohedron'
-version '1.0-SNAPSHOT-1'
+version '1.0-PRERELEASE'
 description = 'Allows players to set their own time without affecting the server\'s'
 
 sourceCompatibility = 1.8
