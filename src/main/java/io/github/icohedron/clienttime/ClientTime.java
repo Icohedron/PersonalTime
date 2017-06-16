@@ -61,10 +61,10 @@ public class ClientTime extends PacketListenerAdapter {
                         .register())
         );
 
-        CommandSpec clientTimeCommand = CommandSpec.builder()
+        CommandSpec clientTimeSetCommand = CommandSpec.builder()
                 .description(Text.of("Set client time"))
-                .permission("clienttime.command")
-                .arguments(GenericArguments.optional(GenericArguments.string(Text.of("time"))))
+                .permission("clienttime.command.set")
+                .arguments(GenericArguments.onlyOne(GenericArguments.string(Text.of("time"))))
                 .executor((src, args) -> {
                     if (!(src instanceof Player)) {
                         src.sendMessage(Text.of("This command may only be executed by a player"));
@@ -81,9 +81,6 @@ public class ClientTime extends PacketListenerAdapter {
                         } else if (time.equalsIgnoreCase("night")) {
                             setClientTime(player, 14000);
                             return CommandResult.success();
-                        } else if (time.equalsIgnoreCase("reset")) {
-                            resetClientTime(player);
-                            return CommandResult.success();
                         } else {
                             int intTime;
                             try {
@@ -99,16 +96,51 @@ public class ClientTime extends PacketListenerAdapter {
                             setClientTime(player, intTime);
                             return CommandResult.success();
                         }
-                    } else {
-                        long ticksAhead = timeOffsets.get(player.getUniqueId());
-                        if (ticksAhead == 0) {
-                            sendMessage(player, "Your time is currently in sync with the server's");
-                        }  else {
-                            sendMessage(player, "Your time is currently running " + ticksAhead + " ticks ahead of the server's");
-                        }
-                        return CommandResult.success();
                     }
+                    return CommandResult.empty();
                 })
+                .build();
+
+        CommandSpec clientTimeResetCommand = CommandSpec.builder()
+                .description(Text.of("Reset client time"))
+                .permission("clienttime.command.reset")
+                .executor((src, args) -> {
+                    if (!(src instanceof Player)) {
+                        src.sendMessage(Text.of("This command may only be executed by a player"));
+                        return CommandResult.empty();
+                    }
+                    Player player = (Player)src;
+                    resetClientTime(player);
+                    return CommandResult.success();
+                })
+                .build();
+
+        CommandSpec clientTimeStatusCommand = CommandSpec.builder()
+                .description(Text.of("Get the status of the client time"))
+                .permission("clienttime.command.status")
+                .executor((src, args) -> {
+                    if (!(src instanceof Player)) {
+                        src.sendMessage(Text.of("This command may only be executed by a player"));
+                        return CommandResult.empty();
+                    }
+                    Player player = (Player)src;
+                    timeOffsets.putIfAbsent(player.getUniqueId(), 0L);
+                    long ticksAhead = timeOffsets.get(player.getUniqueId());
+                    if (ticksAhead == 0) {
+                        sendMessage(player, "Your time is currently in sync with the server's");
+                    }  else {
+                        sendMessage(player, "Your time is currently running " + ticksAhead + " ticks ahead of the server's");
+                    }
+                    return CommandResult.success();
+                })
+                .build();
+
+        CommandSpec clientTimeCommand = CommandSpec.builder()
+                .description(Text.of("The one command for ClientTime"))
+                .permission("clienttime.command")
+                .child(clientTimeSetCommand, "set")
+                .child(clientTimeResetCommand, "reset")
+                .child(clientTimeStatusCommand, "status")
                 .build();
 
         Sponge.getCommandManager().register(this, clientTimeCommand, "clienttime", "ctime", "ptime");
@@ -184,7 +216,5 @@ public class ClientTime extends PacketListenerAdapter {
         }
 
         packetEvent.setPacket(new SPacketTimeUpdate(totalWorldTime, clientWorldTime, true));
-
-//        logger.info("UUID: " + playerUuid + ", World Time: " + worldTime + ", Client World Time: " + clientWorldTime);
     }
 }
