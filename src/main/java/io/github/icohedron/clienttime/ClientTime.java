@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-@Plugin(id = "clienttime", name = "ClientTime", description = "Allows clients/players to set their own time without affecting the server\'s", version = "1.0-PRERELEASE", dependencies = @Dependency(id = "packetgate"))
+@Plugin(id = "clienttime", name = "Client Time", description = "Allows clients/players to set their own time without affecting the server\'s", version = "1.0-PRERELEASE", dependencies = @Dependency(id = "packetgate"))
 public class ClientTime extends PacketListenerAdapter {
 
     @Inject
@@ -46,9 +46,9 @@ public class ClientTime extends PacketListenerAdapter {
             PacketGate packetGate = packetGateOptional.get();
             packetGate.registerListener(this, ListenerPriority.DEFAULT, SPacketTimeUpdate.class);
             initializeCommands();
-            logger.info("ClientTime has successfully initialized");
+            logger.info("Client Time has successfully initialized");
         } else {
-            logger.error("PacketGate is not installed. ClientTime depends on PacketGate in order to work");
+            logger.error("PacketGate is not installed. Client Time depends on PacketGate in order to work");
         }
     }
 
