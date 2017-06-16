@@ -53,14 +53,6 @@ public class ClientTime extends PacketListenerAdapter {
     }
 
     private void initializeCommands() {
-        Sponge.getServiceManager().provide(PermissionService.class).ifPresent(permissionService ->
-            permissionService.newDescriptionBuilder(this).ifPresent(builder ->
-                builder.id("clienttime.command")
-                        .description(Text.of("A user with this command will be able to set their own client time. Does not affect server time."))
-                        .assign(PermissionDescription.ROLE_USER, true)
-                        .register())
-        );
-
         CommandSpec clientTimeSetCommand = CommandSpec.builder()
                 .description(Text.of("Set client time"))
                 .permission("clienttime.command.set")
